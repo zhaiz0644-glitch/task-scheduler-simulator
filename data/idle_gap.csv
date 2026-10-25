@@ -1,0 +1,5 @@
+task_id,name,arrival_time,burst_time,priority
+T1,第一批任务A,0,3,2
+T2,第一批任务B,1,2,1
+T3,第二批任务C,10,4,3
+T4,第二批任务D,12,2,2

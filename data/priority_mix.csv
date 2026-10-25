@@ -1,0 +1,6 @@
+task_id,name,arrival_time,burst_time,priority
+T1,低优先任务A,0,6,1
+T2,高优先任务B,1,2,5
+T3,中优先任务C,2,4,3
+T4,高优先任务D,3,3,5
+T5,低优先任务E,5,2,1

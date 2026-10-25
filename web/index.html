@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务调度模拟器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f7;
+    --card: #ffffff;
+    --card-2: #f7f9fc;
+    --border: #e4e9f2;
+    --text: #1e293b;
+    --text-2: #64748b;
+    --text-3: #94a3b8;
+    --primary: #4f6bfe;
+    --primary-2: #7c5cff;
+    --primary-soft: #eef1ff;
+    --danger: #ef4444;
+    --ok: #16a34a;
+    --radius: 16px;
+    --shadow: 0 10px 30px rgba(30,41,59,.08), 0 2px 6px rgba(30,41,59,.04);
+    --shadow-sm: 0 2px 8px rgba(30,41,59,.06);
+    --font: "Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC","Helvetica Neue",Arial,sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--font);
+    background: linear-gradient(135deg, #eef1f7 0%, #f8fafc 100%);
+    color: var(--text);
+    display: flex; flex-direction: column; overflow: hidden;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+
+  /* ---------- 顶部栏 ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 22px; background: var(--card); border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm); z-index: 10; flex-shrink: 0; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 46px; height: 46px; border-radius: 13px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    display: grid; place-items: center; font-size: 23px;
+    box-shadow: 0 6px 16px rgba(79,107,254,.35); color: #fff;
+  }
+  .brand h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: .5px; }
+  .brand p { margin: 2px 0 0; font-size: 12px; color: var(--text-2); font-weight: 500; }
+  .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .top-actions label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .top-actions select {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: var(--font); font-size: 13px; color: var(--text); background: #fff; cursor: pointer;
+  }
+  .top-actions select:focus { outline: none; border-color: var(--primary); }
+
+  /* ---------- 主布局 ---------- */
+  .layout { flex: 1; display: grid; grid-template-columns: 316px 1fr 372px; min-height: 0; }
+
+  /* ---------- 卡片 ---------- */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 16px;
+  }
+  .card-title {
+    font-size: 12px; font-weight: 700; color: var(--text-2);
+    text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card-title .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); display: inline-block; }
+
+  /* ---------- 左 / 右侧栏 ---------- */
+  .sidebar { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+  .segmented { display: flex; background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 4px; gap: 4px; }
+  .segmented button {
+    flex: 1; border: none; background: transparent; padding: 9px 4px; border-radius: 9px;
+    cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--text-2);
+    transition: all .18s ease; white-space: nowrap;
+  }
+  .segmented button.active { background: #fff; color: var(--primary); box-shadow: var(--shadow-sm); }
+  .segmented button:hover:not(.active) { color: var(--text); }
+  .alg-desc { margin-top: 10px; font-size: 12px; color: var(--text-2); line-height: 1.5; }
+
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: var(--font); font-size: 14px; color: var(--text); background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,107,254,.12); }
+  .field input:disabled { background: var(--card-2); color: var(--text-3); cursor: not-allowed; }
+  .range-wrap { display: flex; align-items: center; gap: 10px; }
+  .range-wrap input[type=range] { flex: 1; padding: 0; border: none; box-shadow: none; accent-color: var(--primary); }
+  .range-val { font-size: 12px; font-weight: 700; color: var(--primary); min-width: 44px; text-align: right; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 11px 16px; border-radius: 11px; border: none; cursor: pointer;
+    font-family: var(--font); font-size: 13.5px; font-weight: 600;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s, color .15s, opacity .15s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary {
+    width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff; box-shadow: 0 6px 16px rgba(79,107,254,.32);
+  }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(79,107,254,.4); }
+  .btn-ghost { background: #fff; border: 1.5px solid var(--border); color: var(--text); }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  .btn-block { width: 100%; }
+  .btn-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-toolbar .btn { padding: 9px 4px; font-size: 12.5px; }
+  .btn-play { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .btn-play .btn { padding: 10px 4px; font-size: 12.5px; }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { font-size: 12px; color: var(--text-3); font-weight: 600; }
+  .kv .v { font-size: 14px; font-weight: 700; word-break: break-all; text-align: right; }
+  .kv .v.mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+  .kv .v.run { color: var(--ok); }
+  .kv .v.idle { color: var(--text-3); }
+  .event-line { margin-top: 8px; font-size: 11.5px; color: var(--text-2); line-height: 1.6; min-height: 18px; }
+
+  /* ---------- 中部 ---------- */
+  .center { display: flex; flex-direction: column; gap: 14px; padding: 18px; min-width: 0; overflow: hidden; }
+  .center .card { display: flex; flex-direction: column; min-height: 0; }
+  .center .card.grow { flex: 1; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .card-head .card-title { margin: 0; }
+  .table-tools { display: flex; gap: 6px; }
+  .table-tools .btn { padding: 7px 11px; font-size: 12px; border-radius: 9px; }
+
+  .table-wrap { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; background: var(--card-2); color: var(--text-2);
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; font-weight: 700;
+    padding: 10px 12px; text-align: center; border-bottom: 1px solid var(--border); z-index: 1;
+  }
+  tbody td { padding: 9px 12px; text-align: center; border-bottom: 1px solid var(--border); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { cursor: pointer; transition: background .12s; }
+  tbody tr:hover { background: var(--card-2); }
+  tbody tr.selected { background: var(--primary-soft); }
+  tbody tr.avg-row { background: #eef2ff; font-weight: 700; cursor: default; }
+  tbody tr.avg-row:hover { background: #eef2ff; }
+
+  .badge { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .badge.notarrived { background: #f3f4f6; color: #6b7280; }
+  .badge.ready { background: #dbeafe; color: #1d4ed8; }
+  .badge.running { background: #bbf7d0; color: #15803d; }
+  .badge.finished { background: #fde68a; color: #92400e; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+
+  .empty { color: var(--text-3); font-size: 12.5px; line-height: 1.7; text-align: center; padding: 22px 8px; }
+
+  /* ---------- 甘特图 ---------- */
+  #gantt { width: 100%; display: block; }
+
+  /* ---------- 弹窗 ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 100;
+    display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px);
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: #fff; border-radius: 18px; width: 400px; max-width: 92vw; padding: 22px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.3); animation: pop .18s ease;
+  }
+  @keyframes pop { from { transform: translateY(8px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+  .modal h3 { margin: 0 0 16px; font-size: 17px; }
+  .modal .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .modal .actions .btn { min-width: 88px; padding: 10px 16px; }
+
+  /* ---------- 轻提示 ---------- */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: #fff; padding: 11px 18px; border-radius: 12px; font-size: 13px;
+    opacity: 0; transition: all .25s ease; z-index: 200; box-shadow: 0 10px 26px rgba(0,0,0,.25); max-width: 80vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--danger); }
+  .toast.ok { background: var(--ok); }
+
+  @media (max-width: 1080px) {
+    .layout { grid-template-columns: 280px 1fr; }
+    .results { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">⏱️</div>
+    <div>
+      <h1>任务调度模拟器</h1>
+      <p>队列 · 优先队列 · FCFS / 优先级 / RR · 单处理器调度</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <label for="dataset-select">数据集</label>
+    <select id="dataset-select"></select>
+    <button class="btn btn-ghost" id="btn-load" title="加载本地 .csv / .json 任务文件">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      加载文件
+    </button>
+    <button class="btn btn-ghost" id="btn-save" title="导出当前任务为 CSV">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 8 12 3 17 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      保存
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>调度算法</div>
+      <div class="segmented" id="alg-segmented">
+        <button data-alg="FCFS" class="active">FCFS</button>
+        <button data-alg="优先级">优先级</button>
+        <button data-alg="RR">RR</button>
+      </div>
+      <div class="alg-desc" id="alg-desc">先来先服务，按到达顺序执行到完成</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>参数</div>
+      <div class="field">
+        <label for="time-slice">时间片 q（仅 RR）</label>
+        <input id="time-slice" type="number" min="1" value="2" disabled>
+      </div>
+      <div class="field">
+        <label>演示速度</label>
+        <div class="range-wrap">
+          <input type="range" id="speed" min="1" max="100" value="10">
+          <span class="range-val" id="speed-val">10 单位/秒</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>回放控制</div>
+      <div class="btn-play">
+        <button class="btn btn-ghost" id="btn-start">开始</button>
+        <button class="btn btn-ghost" id="btn-pause" disabled>暂停</button>
+        <button class="btn btn-ghost" id="btn-step">单步</button>
+      </div>
+      <div class="btn-play" style="margin-top:8px">
+        <button class="btn btn-ghost" id="btn-end">运行到底</button>
+        <button class="btn btn-ghost" id="btn-reset">重置</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>当前状态</div>
+      <div class="kv"><span class="k">当前时间</span><span class="v mono" id="st-time">0</span></div>
+      <div class="kv"><span class="k">运行中</span><span class="v idle" id="st-running">空闲</span></div>
+      <div class="kv"><span class="k">就绪队列</span><span class="v" id="st-queue">（空）</span></div>
+      <div class="event-line" id="st-events"></div>
+    </div>
+  </aside>
+
+  <main class="center">
+    <div class="card grow">
+      <div class="card-head">
+        <div class="card-title"><span class="dot"></span>任务列表</div>
+        <div class="table-tools">
+          <button class="btn btn-ghost" id="btn-add">添加</button>
+          <button class="btn btn-ghost" id="btn-edit">修改</button>
+          <button class="btn btn-ghost" id="btn-del">删除</button>
+          <button class="btn btn-ghost" id="btn-clear">清空</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>编号</th><th>名称</th><th>到达</th><th>运行</th>
+              <th>优先级</th><th>剩余</th><th>状态</th>
+            </tr>
+          </thead>
+          <tbody id="task-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="flex-shrink:0; height: 208px;">
+      <div class="card-title"><span class="dot"></span>甘特图 · 处理器执行 / 空闲区间</div>
+      <svg id="gantt" height="150" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </main>
+
+  <aside class="sidebar results">
+    <div class="card" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+      <div class="card-head">
+        <div class="card-title"><span class="dot"></span>统计结果</div>
+        <button class="btn btn-ghost" id="btn-export" style="padding:7px 11px;font-size:12px;border-radius:9px" disabled>导出 CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>编号</th><th>名称</th><th>S</th><th>C</th><th>周转</th><th>等待</th><th>响应</th></tr>
+          </thead>
+          <tbody id="result-body">
+            <tr><td colspan="7" class="empty">运行后显示周转 / 等待 / 响应时间</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>算法对比</div>
+      <button class="btn btn-primary" id="btn-compare">运行对比（FCFS / 优先级 / RR）</button>
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead>
+            <tr><th>算法</th><th>时间片</th><th>平均周转</th><th>平均等待</th><th>平均响应</th></tr>
+          </thead>
+          <tbody id="cmp-body">
+            <tr><td colspan="5" class="empty">对同一组任务运行三种算法</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" id="modal-cancel">取消</button>
+      <button class="btn btn-primary" id="modal-confirm" style="width:auto">确定</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".csv,.json" hidden>
+
+<script>
+/* =========================================================
+   任务调度模拟器 —— 网页版
+   调度算法与桌面版 scheduler.py 完全一致：
+   FCFS（先来先服务）、非抢占式优先级调度、RR（时间片轮转）
+   引擎预先计算完整轨迹，界面仅回放，动画速度不影响结果。
+   ========================================================= */
+
+/* ---------- 状态（纯数据） ---------- */
+let tasks = [];            // [{ id, name, arrival, burst, priority }]
+let result = null;         // SimulationResult
+let stepIndex = 0;
+let playing = false;
+let playTimer = null;
+let algorithm = 'FCFS';
+let speed = 10;
+let selectedRow = null;
+
+const TASK_COLORS = ["#4e79a7","#f28e2b","#e15759","#76b7b2","#59a14f",
+                     "#edc948","#b07aa1","#ff9da7","#9c755f","#bab0ac",
+                     "#6c8ebf","#d6b656"];
+const IDLE_COLOR = "#e5e7eb";
+const IDLE_TEXT = "#9ca3af";
+const ALG_DESC = {
+  'FCFS': '先来先服务，按到达顺序执行到完成',
+  '优先级': '非抢占，每次选优先级最高者执行到完成',
+  'RR': '时间片轮转，未完成任务回到队尾'
+};
+
+/* 内置数据集（由 build.py 注入） */
+const DATASETS = {"example": {"name": "任务书示例数据", "tasks": [{"id": "T1", "name": "任务A", "arrival": 0, "burst": 5, "priority": 2}, {"id": "T2", "name": "任务B", "arrival": 1, "burst": 3, "priority": 1}, {"id": "T3", "name": "任务C", "arrival": 2, "burst": 1, "priority": 3}, {"id": "T4", "name": "任务D", "arrival": 4, "burst": 2, "priority": 1}]}, "same_arrival": {"name": "同时到达", "tasks": [{"id": "T1", "name": "任务A", "arrival": 0, "burst": 5, "priority": 2}, {"id": "T2", "name": "任务B", "arrival": 0, "burst": 3, "priority": 1}, {"id": "T3", "name": "任务C", "arrival": 0, "burst": 1, "priority": 3}, {"id": "T4", "name": "任务D", "arrival": 0, "burst": 2, "priority": 1}]}, "mixed": {"name": "长短任务混合", "tasks": [{"id": "T1", "name": "长任务A", "arrival": 0, "burst": 10, "priority": 1}, {"id": "T2", "name": "短任务B", "arrival": 1, "burst": 2, "priority": 2}, {"id": "T3", "name": "短任务C", "arrival": 2, "burst": 1, "priority": 1}, {"id": "T4", "name": "短任务D", "arrival": 3, "burst": 2, "priority": 2}, {"id": "T5", "name": "短任务E", "arrival": 4, "burst": 1, "priority": 1}]}, "priority_mix": {"name": "优先级混合", "tasks": [{"id": "T1", "name": "低优先任务A", "arrival": 0, "burst": 6, "priority": 1}, {"id": "T2", "name": "高优先任务B", "arrival": 1, "burst": 2, "priority": 5}, {"id": "T3", "name": "中优先任务C", "arrival": 2, "burst": 4, "priority": 3}, {"id": "T4", "name": "高优先任务D", "arrival": 3, "burst": 3, "priority": 5}, {"id": "T5", "name": "低优先任务E", "arrival": 5, "burst": 2, "priority": 1}]}, "idle_gap": {"name": "存在空闲区间", "tasks": [{"id": "T1", "name": "第一批任务A", "arrival": 0, "burst": 3, "priority": 2}, {"id": "T2", "name": "第一批任务B", "arrival": 1, "burst": 2, "priority": 1}, {"id": "T3", "name": "第二批任务C", "arrival": 10, "burst": 4, "priority": 3}, {"id": "T4", "name": "第二批任务D", "arrival": 12, "burst": 2, "priority": 2}]}};
+
+/* ---------- 调度引擎（与 scheduler.py 一一对应） ---------- */
+function lessKey(a, b) {
+  for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] < b[i]; }
+  return false;
+}
+
+function pickHighest(ready, byId) {
+  let best = null, bestKey = null;
+  for (const id of ready) {
+    const t = byId[id];
+    const key = [-t.priority, t.arrival, t.index];
+    if (bestKey === null || lessKey(key, bestKey)) { bestKey = key; best = id; }
+  }
+  return best;
+}
+
+function buildSegments(steps) {
+  const segments = [];
+  let cur = null;
+  for (const s of steps) {
+    if (cur === null || cur.task !== s.running) {
+      if (cur) segments.push(cur);
+      cur = { start: s.time, end: s.time + 1, task: s.running };
+    } else { cur.end = s.time + 1; }
+  }
+  if (cur) segments.push(cur);
+  return segments;
+}
+
+function simulate(tasks, algorithm, timeSlice) {
+  const n = tasks.length;
+  const order = tasks.map((t, i) => ({ id: t.id, name: t.name, arrival: t.arrival, burst: t.burst, priority: t.priority, index: i }));
+  const byId = {}; order.forEach(t => byId[t.id] = t);
+  const rem = {}; order.forEach(t => rem[t.id] = t.burst);
+  const finished = new Set();
+  const ready = [];
+  let running = null, sliceUsed = 0, t = 0;
+  const steps = [];
+  const startTime = {}, finishTime = {};
+  const q = timeSlice;
+
+  while (finished.size < n) {
+    const events = [];
+    for (const task of order) {
+      if (task.arrival === t && !finished.has(task.id) && !ready.includes(task.id) && running !== task.id) {
+        ready.push(task.id); events.push(task.id + ' 到达');
+      }
+    }
+    if (algorithm === 'RR' && running !== null && sliceUsed >= q && rem[running] > 0) {
+      ready.push(running); events.push(running + ' 时间片耗尽，回到队尾'); running = null;
+    }
+    if (running === null && ready.length) {
+      if (algorithm === '优先级') { running = pickHighest(ready, byId); ready.splice(ready.indexOf(running), 1); }
+      else { running = ready.shift(); }
+      if (startTime[running] === undefined) startTime[running] = t;
+      sliceUsed = 0;
+    }
+    const states = {};
+    for (const task of order) {
+      if (finished.has(task.id)) states[task.id] = '完成';
+      else if (task.id === running) states[task.id] = '运行中';
+      else if (ready.includes(task.id)) states[task.id] = '就绪';
+      else states[task.id] = '未到达';
+    }
+    steps.push({ time: t, running, ready: [...ready], states, remaining: { ...rem }, events });
+    if (running !== null) {
+      rem[running]--;
+      if (algorithm === 'RR') sliceUsed++;
+      if (rem[running] === 0) { finished.add(running); finishTime[running] = t + 1; running = null; }
+    }
+    t++;
+  }
+
+  const taskResults = order.map(t => {
+    const C = finishTime[t.id] ?? 0, S = startTime[t.id] ?? 0;
+    return { id: t.id, name: t.name, arrival: t.arrival, burst: t.burst, priority: t.priority,
+             start: S, finish: C, turnaround: C - t.arrival, waiting: C - t.arrival - t.burst, response: S - t.arrival };
+  });
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  return {
+    algorithm, timeSlice, steps, segments: buildSegments(steps), taskResults,
+    avgTurnaround: avg(taskResults.map(r => r.turnaround)),
+    avgWaiting: avg(taskResults.map(r => r.waiting)),
+    avgResponse: avg(taskResults.map(r => r.response)),
+    totalTime: t
+  };
+}
+
+function runComparison(tasks) {
+  return [
+    simulate(tasks, 'FCFS', null),
+    simulate(tasks, '优先级', null),
+    simulate(tasks, 'RR', 1),
+    simulate(tasks, 'RR', 4)
+  ];
+}
+
+/* ---------- 校验 ---------- */
+function validateTasks(list) {
+  const errors = [];
+  const seen = new Set();
+  for (const t of list) {
+    if (!t.id || !String(t.id).trim()) errors.push('任务编号不能为空');
+    else if (seen.has(t.id)) errors.push('任务编号重复：' + t.id);
+    seen.add(t.id);
+    if (!t.name || !String(t.name).trim()) errors.push('任务 ' + (t.id || '?') + ' 的名称不能为空');
+    if (!Number.isInteger(t.arrival) || t.arrival < 0) errors.push('任务 ' + t.id + ' 的到达时间必须为非负整数');
+    if (!Number.isInteger(t.burst) || t.burst <= 0) errors.push('任务 ' + t.id + ' 的运行时长必须为正整数');
+    if (!Number.isInteger(t.priority) || t.priority < 0) errors.push('任务 ' + t.id + ' 的优先级必须为非负整数');
+  }
+  return errors;
+}
+
+/* ---------- 工具 ---------- */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmt(x) { return Number(x).toFixed(2); }
+function taskColor(id) {
+  const i = tasks.findIndex(t => t.id === id);
+  return i >= 0 ? TASK_COLORS[i % TASK_COLORS.length] : '#94a3b8';
+}
+function stateClass(state) {
+  return { '未到达': 'notarrived', '就绪': 'ready', '运行中': 'running', '完成': 'finished' }[state] || 'notarrived';
+}
+let toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+function download(filename, text, mime) {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- 弹窗 ---------- */
+let modalConfirmHandler = null;
+function openModal(title, bodyHTML, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  modalConfirmHandler = onConfirm;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+/* ---------- 渲染 ---------- */
+function renderTaskTable(step) {
+  const tbody = document.getElementById('task-body');
+  if (!tasks.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无任务，点击「添加」或选择数据集</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tasks.map(t => {
+    let state = '未到达', rem = t.burst;
+    if (step) {
+      state = step.states[t.id] || '未到达';
+      rem = step.remaining[t.id] !== undefined ? step.remaining[t.id] : t.burst;
+    }
+    const sel = selectedRow === t.id ? ' selected' : '';
+    return `<tr data-id="${escapeHtml(t.id)}" class="${sel}">
+      <td><span class="swatch" style="background:${taskColor(t.id)}"></span>${escapeHtml(t.id)}</td>
+      <td>${escapeHtml(t.name)}</td>
+      <td>${t.arrival}</td><td>${t.burst}</td><td>${t.priority}</td>
+      <td>${rem}</td>
+      <td><span class="badge ${stateClass(state)}">${state}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStatus(step) {
+  document.getElementById('st-time').textContent = step.time;
+  const runEl = document.getElementById('st-running');
+  if (step.running) { runEl.textContent = step.running; runEl.className = 'v run'; }
+  else { runEl.textContent = '空闲'; runEl.className = 'v idle'; }
+  document.getElementById('st-queue').textContent = step.ready.length ? step.ready.join(' → ') : '（空）';
+  document.getElementById('st-events').textContent = step.events.length ? '▸ ' + step.events.join('　▸ ') : '';
+}
+
+let ganttGeo = { left: 40, scale: 0, barTop: 30, barBottom: 74, axisY: 88 };
+
+function renderGantt() {
+  const svg = document.getElementById('gantt');
+  const w = svg.clientWidth || 620;
+  svg.setAttribute('viewBox', `0 0 ${w} 150`);
+  svg.innerHTML = '';
+  if (!result || !result.segments.length) {
+    svg.innerHTML = `<text x="${w/2}" y="75" text-anchor="middle" fill="#94a3b8" font-size="13">运行后显示甘特图</text>`;
+    ganttGeo.scale = 0;
+    return;
+  }
+  const left = 40, right = 20, top = 24, barTop = 32, barH = 42, axisY = barTop + barH + 14;
+  const plotW = Math.max(w - left - right, 10);
+  const total = Math.max(result.totalTime, 1);
+  const scale = plotW / total;
+  ganttGeo = { left, scale, barTop, barBottom: barTop + barH, axisY };
+
+  // 时间轴
+  let ticks = '';
+  const stepTick = total <= 20 ? 1 : (total <= 40 ? 2 : 5);
+  for (let k = 0; k <= total; k += stepTick) {
+    const x = left + k * scale;
+    ticks += `<line x1="${x}" y1="${axisY}" x2="${x}" y2="${axisY+4}" stroke="#9ca3af"/>` +
+             `<text x="${x}" y="${axisY+16}" text-anchor="middle" font-size="9" fill="#4b5563" font-family="Consolas,monospace">${k}</text>`;
+  }
+  let bars = `<line x1="${left}" y1="${axisY}" x2="${left+plotW}" y2="${axisY}" stroke="#9ca3af"/>`;
+
+  for (const seg of result.segments) {
+    const x0 = left + seg.start * scale, x1 = left + seg.end * scale;
+    const fill = seg.task === null ? IDLE_COLOR : taskColor(seg.task);
+    const txt = seg.task === null ? '空闲' : seg.task;
+    const txtColor = seg.task === null ? IDLE_TEXT : '#fff';
+    bars += `<rect x="${x0}" y="${barTop}" width="${Math.max(x1-x0,1)}" height="${barH}" rx="4" fill="${fill}"/>`;
+    if (x1 - x0 >= 26) {
+      bars += `<text x="${(x0+x1)/2}" y="${barTop+barH/2+3}" text-anchor="middle" font-size="10" fill="${txtColor}" font-family="Consolas,monospace">${txt}</text>`;
+    }
+  }
+  bars += `<line id="gantt-cursor" x1="${left}" y1="${top}" x2="${left}" y2="${axisY}" stroke="#ef4444" stroke-width="2"/>` +
+          `<text id="gantt-cursor-label" x="${left}" y="${top-6}" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700" font-family="Consolas,monospace">t=0</text>`;
+  svg.innerHTML = ticks + bars;
+  moveCursor(stepIndex < result.steps.length ? result.steps[stepIndex].time : 0);
+}
+
+function moveCursor(t) {
+  const line = document.getElementById('gantt-cursor');
+  if (!line || !ganttGeo.scale) return;
+  const x = ganttGeo.left + t * ganttGeo.scale;
+  line.setAttribute('x1', x); line.setAttribute('x2', x);
+  const label = document.getElementById('gantt-cursor-label');
+  label.setAttribute('x', x); label.textContent = 't=' + t;
+}
+
+function renderResults() {
+  const tbody = document.getElementById('result-body');
+  if (!result) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">运行后显示周转 / 等待 / 响应时间</td></tr>';
+    return;
+  }
+  tbody.innerHTML = result.taskResults.map(r =>
+    `<tr><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.name)}</td>
+     <td>${r.start}</td><td>${r.finish}</td><td>${r.turnaround}</td><td>${r.waiting}</td><td>${r.response}</td></tr>`
+  ).join('') +
+  `<tr class="avg-row"><td>平均</td><td>—</td><td>—</td><td>—</td>
+   <td>${fmt(result.avgTurnaround)}</td><td>${fmt(result.avgWaiting)}</td><td>${fmt(result.avgResponse)}</td></tr>`;
+}
+
+function renderComparison(results) {
+  const tbody = document.getElementById('cmp-body');
+  tbody.innerHTML = results.map(r =>
+    `<tr><td>${r.algorithm}</td><td>${r.timeSlice ? r.timeSlice : '—'}</td>
+     <td>${fmt(r.avgTurnaround)}</td><td>${fmt(r.avgWaiting)}</td><td>${fmt(r.avgResponse)}</td></tr>`
+  ).join('');
+}
+
+function showStep(i) {
+  if (!result) return;
+  stepIndex = i;
+  const step = result.steps[i];
+  renderStatus(step);
+  renderTaskTable(step);
+  moveCursor(step.time);
+}
+
+/* ---------- 控制 ---------- */
+function setEditingEnabled(enabled) {
+  const ids = ['dataset-select', 'btn-load', 'btn-add', 'btn-edit', 'btn-del', 'btn-clear'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !enabled; });
+}
+function updatePlayButtons() {
+  document.getElementById('btn-pause').textContent = playing ? '暂停' : '继续';
+  document.getElementById('btn-pause').disabled = !result;
+}
+
+function runEngine() {
+  const errs = validateTasks(tasks);
+  if (errs.length) { toast(errs.join('；'), 'error'); return false; }
+  let q = null;
+  if (algorithm === 'RR') {
+    q = parseInt(document.getElementById('time-slice').value, 10);
+    if (!Number.isInteger(q) || q <= 0) { toast('时间片必须为正整数', 'error'); return false; }
+  }
+  result = simulate(tasks, algorithm, q);
+  stepIndex = 0;
+  renderGantt();
+  renderResults();
+  document.getElementById('btn-export').disabled = false;
+  setEditingEnabled(false);
+  updatePlayButtons();
+  return true;
+}
+
+function delayMs() { return Math.max(5, Math.round(1000 / Math.max(speed, 0.5))); }
+
+function start() {
+  if (!tasks.length) { toast('请先添加或加载任务', 'error'); return; }
+  if (!runEngine()) return;
+  showStep(0);
+  playing = true;
+  updatePlayButtons();
+  if (stepIndex < result.steps.length - 1) playTimer = setTimeout(tick, delayMs());
+}
+function tick() {
+  if (!playing || !result) return;
+  if (stepIndex < result.steps.length - 1) {
+    stepIndex++;
+    showStep(stepIndex);
+    playTimer = setTimeout(tick, delayMs());
+  } else {
+    playing = false; updatePlayButtons();
+  }
+}
+function togglePause() {
+  if (!result) return;
+  playing = !playing;
+  if (playing) playTimer = setTimeout(tick, delayMs());
+  else { clearTimeout(playTimer); playTimer = null; }
+  updatePlayButtons();
+}
+function stepOnce() {
+  if (!tasks.length) { toast('请先添加或加载任务', 'error'); return; }
+  if (!result) { if (!runEngine()) return; stepIndex = -1; }
+  if (stepIndex < result.steps.length - 1) { stepIndex++; showStep(stepIndex); }
+}
+function showFinal() {
+  if (!result) return;
+  const states = {}, remaining = {};
+  result.taskResults.forEach(r => { states[r.id] = '完成'; remaining[r.id] = 0; });
+  const s = { time: result.totalTime, running: null, ready: [], states, remaining, events: ['模拟结束，所有任务完成'] };
+  renderStatus(s); renderTaskTable(s); moveCursor(s.time);
+}
+function runToEnd() {
+  if (!tasks.length) { toast('请先添加或加载任务', 'error'); return; }
+  if (!result) { if (!runEngine()) return; }
+  playing = false; clearTimeout(playTimer); playTimer = null; updatePlayButtons();
+  showFinal();
+}
+function reset() {
+  playing = false; clearTimeout(playTimer); playTimer = null;
+  result = null; stepIndex = 0; selectedRow = null;
+  renderStatus({ time: 0, running: null, ready: [], events: [] });
+  renderTaskTable(null);
+  renderGantt();
+  renderResults();
+  document.getElementById('cmp-body').innerHTML = '<tr><td colspan="5" class="empty">对同一组任务运行三种算法</td></tr>';
+  document.getElementById('btn-export').disabled = true;
+  setEditingEnabled(true);
+  updatePlayButtons();
+}
+
+/* ---------- 任务管理 ---------- */
+function applyTasks(list) {
+  const errs = validateTasks(list);
+  if (errs.length) { toast(errs.join('；'), 'error'); return false; }
+  tasks = list; selectedRow = null; reset();
+  return true;
+}
+
+function taskDialog(existing) {
+  const d = existing || { id: '', name: '', arrival: 0, burst: 1, priority: 0 };
+  openModal(existing ? '修改任务' : '添加任务', `
+    <div class="field"><label>任务编号（唯一）</label><input id="m-id" value="${escapeHtml(d.id)}"></div>
+    <div class="field"><label>任务名称</label><input id="m-name" value="${escapeHtml(d.name)}"></div>
+    <div class="field"><label>到达时间（非负整数）</label><input id="m-arrival" type="number" value="${d.arrival}"></div>
+    <div class="field"><label>运行时长（正整数）</label><input id="m-burst" type="number" value="${d.burst}"></div>
+    <div class="field"><label>优先级（非负整数，越大越高）</label><input id="m-priority" type="number" value="${d.priority}"></div>
+  `, () => {
+    const id = document.getElementById('m-id').value.trim();
+    const name = document.getElementById('m-name').value.trim();
+    const arrival = parseInt(document.getElementById('m-arrival').value, 10);
+    const burst = parseInt(document.getElementById('m-burst').value, 10);
+    const priority = parseInt(document.getElementById('m-priority').value, 10);
+    const candidate = { id, name, arrival, burst, priority };
+    const others = tasks.filter(t => t !== existing);
+    const errs = validateTasks([...others, candidate]);
+    if (errs.length) { toast(errs.join('；'), 'error'); return false; }
+    if (existing) { const i = tasks.indexOf(existing); tasks[i] = candidate; }
+    else { tasks.push(candidate); }
+    selectedRow = candidate.id; reset(); toast('已保存任务 ' + id, 'ok');
+    return true;
+  });
+}
+
+function addTask() { taskDialog(null); }
+function editTask() {
+  if (!selectedRow) { toast('请先在表格中点击选择要修改的任务', 'error'); return; }
+  const t = tasks.find(x => x.id === selectedRow);
+  if (t) taskDialog(t);
+}
+function deleteTask() {
+  if (!selectedRow) { toast('请先在表格中点击选择要删除的任务', 'error'); return; }
+  tasks = tasks.filter(x => x.id !== selectedRow);
+  selectedRow = null; reset(); toast('已删除任务', 'ok');
+}
+function clearTasks() {
+  if (!tasks.length) return;
+  tasks = []; selectedRow = null; reset(); toast('已清空任务', 'ok');
+}
+
+/* ---------- 数据加载 / 保存 ---------- */
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+  if (!lines.length) throw new Error('空文件');
+  const header = lines[0].split(',').map(s => s.trim());
+  const idx = {}; header.forEach((h, i) => idx[h] = i);
+  const tasks = [];
+  for (let i = 1; i < lines.length; i++) {
+    const c = lines[i].split(',').map(s => s.trim());
+    if (!c[idx.task_id]) continue;
+    tasks.push({
+      id: c[idx.task_id], name: c[idx.name] || '',
+      arrival: parseInt(c[idx.arrival_time], 10),
+      burst: parseInt(c[idx.burst_time], 10),
+      priority: parseInt((c[idx.priority] || '0'), 10)
+    });
+  }
+  return tasks;
+}
+
+function loadDataset(key) {
+  const d = DATASETS[key];
+  if (!d) return;
+  tasks = d.tasks.map(t => ({ id: t.id, name: t.name, arrival: t.arrival, burst: t.burst, priority: t.priority }));
+  reset();
+  toast('已加载数据集：' + d.name + '（' + tasks.length + ' 任务）', 'ok');
+}
+
+function saveFile() {
+  if (!tasks.length) { toast('没有可保存的任务', 'error'); return; }
+  const csv = '﻿task_id,name,arrival_time,burst_time,priority\n' +
+    tasks.map(t => `${t.id},${t.name},${t.arrival},${t.burst},${t.priority}`).join('\n');
+  download('任务数据.csv', csv, 'text/csv;charset=utf-8');
+  toast('已导出任务 CSV', 'ok');
+}
+
+function exportResults() {
+  if (!result) return;
+  const csv = '﻿task_id,name,arrival_time,burst_time,priority,start_time,finish_time,turnaround,waiting,response\n' +
+    result.taskResults.map(r => `${r.id},${r.name},${r.arrival},${r.burst},${r.priority},${r.start},${r.finish},${r.turnaround},${r.waiting},${r.response}`).join('\n');
+  download('统计结果.csv', csv, 'text/csv;charset=utf-8');
+  toast('已导出统计结果 CSV', 'ok');
+}
+
+/* ---------- 初始化 ---------- */
+function init() {
+  // 数据集下拉
+  const sel = document.getElementById('dataset-select');
+  sel.innerHTML = Object.keys(DATASETS).map(k =>
+    `<option value="${k}">${escapeHtml(DATASETS[k].name)}（${DATASETS[k].tasks.length} 任务）</option>`).join('');
+  sel.addEventListener('change', e => loadDataset(e.target.value));
+
+  // 算法分段选择
+  document.querySelectorAll('#alg-segmented button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      algorithm = btn.dataset.alg;
+      document.querySelectorAll('#alg-segmented button').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('alg-desc').textContent = ALG_DESC[algorithm];
+      document.getElementById('time-slice').disabled = algorithm !== 'RR';
+    });
+  });
+
+  // 参数
+  document.getElementById('time-slice').addEventListener('input', () => { if (result) reset(); });
+  const speedInput = document.getElementById('speed');
+  speedInput.addEventListener('input', () => {
+    speed = parseInt(speedInput.value, 10);
+    document.getElementById('speed-val').textContent = speed + ' 单位/秒';
+  });
+
+  // 回放控制
+  document.getElementById('btn-start').addEventListener('click', start);
+  document.getElementById('btn-pause').addEventListener('click', togglePause);
+  document.getElementById('btn-step').addEventListener('click', stepOnce);
+  document.getElementById('btn-end').addEventListener('click', runToEnd);
+  document.getElementById('btn-reset').addEventListener('click', reset);
+
+  // 任务管理
+  document.getElementById('btn-add').addEventListener('click', addTask);
+  document.getElementById('btn-edit').addEventListener('click', editTask);
+  document.getElementById('btn-del').addEventListener('click', deleteTask);
+  document.getElementById('btn-clear').addEventListener('click', clearTasks);
+  document.getElementById('task-body').addEventListener('click', e => {
+    const tr = e.target.closest('tr[data-id]');
+    if (tr) { selectedRow = tr.dataset.id; renderTaskTable(result ? result.steps[stepIndex] : null); }
+  });
+
+  // 统计 / 对比
+  document.getElementById('btn-export').addEventListener('click', exportResults);
+  document.getElementById('btn-compare').addEventListener('click', () => {
+    if (!tasks.length) { toast('请先添加或加载任务', 'error'); return; }
+    const errs = validateTasks(tasks);
+    if (errs.length) { toast(errs.join('；'), 'error'); return; }
+    renderComparison(runComparison(tasks));
+    toast('对比完成：可在左侧切换算法查看对应甘特图', 'ok');
+  });
+
+  // 文件加载 / 保存
+  document.getElementById('btn-load').addEventListener('click', () => document.getElementById('file-input').click());
+  document.getElementById('btn-save').addEventListener('click', saveFile);
+  document.getElementById('file-input').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result;
+        const list = f.name.toLowerCase().endsWith('.json')
+          ? JSON.parse(text).tasks.map(t => ({ id: String(t.task_id), name: String(t.name), arrival: parseInt(t.arrival_time, 10), burst: parseInt(t.burst_time, 10), priority: parseInt(t.priority || 0, 10) }))
+          : parseCSV(text);
+        if (applyTasks(list)) toast('已加载文件：' + f.name, 'ok');
+      } catch (err) { toast('加载失败：' + err.message, 'error'); }
+    };
+    reader.readAsText(f);
+    e.target.value = '';
+  });
+
+  // 弹窗
+  document.getElementById('modal-confirm').addEventListener('click', () => {
+    const ok = modalConfirmHandler ? modalConfirmHandler() : true;
+    if (ok === false) return;
+    closeModal();
+  });
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
+
+  window.addEventListener('resize', () => renderGantt());
+
+  // 初始加载默认数据集
+  loadDataset(Object.keys(DATASETS)[0]);
+}
+
+if (typeof document !== 'undefined' && typeof window !== 'undefined') { init(); }
+</script>
+</body>
+</html>
